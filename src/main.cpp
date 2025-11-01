@@ -38,6 +38,9 @@ class $modify(MyEditorUI, EditorUI) {
 			fields->m_defaultObject->m_detailColor = new GJSpriteColor();
 		}
 
+		fields->m_defaultObject->m_baseColor->m_defaultColorID = 0;
+		fields->m_defaultObject->m_detailColor->m_defaultColorID = 0;
+
 		schedule(schedule_selector(MyEditorUI::updateObjectColors));
 		return true;
 	}
