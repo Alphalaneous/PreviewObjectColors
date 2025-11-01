@@ -29,7 +29,7 @@ class $modify(MyEditorUI, EditorUI) {
 		if (result) {
 			auto objects = editorLayer->createObjectsFromString(result.unwrap().asString().unwrap(), false, false);
 			fields->m_defaultObject = static_cast<GameObject*>(objects->firstObject());
-			deleteObject(fields->m_defaultObject, true);
+			deleteObject(fields->m_defaultObject, false);
 		}
 		else {
 			fields->m_defaultObject = GameObject::createWithKey(207);
