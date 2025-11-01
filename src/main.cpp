@@ -265,7 +265,7 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
 		SaveLevelDataAPI::setSavedValue(
             m_editorLayer->m_level,
             "default-object",
-            editorUI->m_fields->m_defaultObject->getSaveString(m_editorLayer),
+            std::string_view(editorUI->m_fields->m_defaultObject->getSaveString(m_editorLayer)),
             false,
             true
         );
