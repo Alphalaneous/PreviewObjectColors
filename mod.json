@@ -1,0 +1,25 @@
+{
+	"geode": "4.9.0",
+	"gd": {
+		"win": "2.2074",
+		"android": "2.2074",
+		"mac": "2.2074",
+		"ios": "2.2074"
+	},
+	"id": "alphalaneous.preview_object_colors",
+	"name": "Preview Object Colors",
+	"version": "v1.0.0",
+	"developer": "Alphalaneous",
+	"description": "Show object colors on objects",
+	"dependencies": {
+		"razoom.save_level_data_api": "v1.0.0"
+	},
+	"links": {
+		"homepage": "https://linktr.ee/Alphalaneous",
+		"source": "https://github.com/Alphalaneous/PreviewObjectColors",
+		"community": "https://discord.gg/Txn2CA5dHF"
+	},
+	"tags": [
+		"editor", "utility", "offline", "enhancement"
+	]
+}
