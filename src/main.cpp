@@ -1,13 +1,10 @@
-#include "Geode/cocos/cocoa/CCArray.h"
-#include "Geode/utils/cocos.hpp"
-#include <Geode/Geode.hpp>
-#include <Geode/binding/EditorUI.hpp>
-#include <Geode/binding/GameObject.hpp>
 #include <Geode/modify/EditorUI.hpp>
 #include <Geode/modify/EditorPauseLayer.hpp>
 #include <razoom.save_level_data_api/include/SaveLevelDataApi.hpp>
 
 using namespace geode::prelude;
+
+class Group : public CCNode {};
 
 class $modify(MyEditorUI, EditorUI) {
 
@@ -86,7 +83,13 @@ class $modify(MyEditorUI, EditorUI) {
 		return ret;
 	}
 
-	std::pair<ccColor3B, bool> getActiveColor(int colorID) {
+	struct ColorData {
+		ccColor3B color;
+		bool blending;
+		GLubyte opacity;
+	};
+
+	ColorData getActiveColor(int colorID) {
 		for (ColorActionSprite* action : m_editorLayer->m_effectManager->m_colorActionSpriteVector) {
 			if (!action) continue;
 			if (action->m_colorID != colorID || action->m_colorID <= 0) continue;
@@ -106,13 +109,15 @@ class $modify(MyEditorUI, EditorUI) {
 			}
 
 			bool blending = false;
+			GLubyte opacity = 255;
 			if (auto colorAction = action->m_colorAction) {
 				blending = colorAction->m_blending;
+				opacity = colorAction->m_currentOpacity * 255;
 			}
 
-			return {color, blending};
+			return {color, blending, opacity};
 		}
-		return {{255, 255, 255}, false};
+		return {{255, 255, 255}, false, 255};
 	}
 
 
@@ -173,6 +178,129 @@ class $modify(MyEditorUI, EditorUI) {
 		return true;
 	}
 
+	void updateButton(CCNode* btn, GameObject* defaultObject) {
+		if (auto btnSprite = btn->getChildByType<ButtonSprite>(0)) {
+			for (auto child : btnSprite->getChildrenExt()) {
+				if (auto gameObject = typeinfo_cast<GameObject*>(child)) {
+					if (!isColorable(gameObject)) return;
+					
+					if (auto baseColor = gameObject->m_baseColor) {
+						baseColor->m_colorID = defaultObject->m_baseColor->m_colorID;
+						baseColor->m_hsv = defaultObject->m_baseColor->m_hsv;
+
+						auto color = ccColor3B{255, 255, 255};
+						bool blending = false;
+						gameObject->updateHSVState();
+
+						if (defaultObject->m_baseColor->m_colorID != 0) {
+							auto colorData = getActiveColor(baseColor->m_colorID);
+							color = colorData.color;
+							blending = colorData.blending;
+							baseColor->m_opacity = colorData.opacity;
+						}
+
+						auto blend = blending 
+							? ccBlendFunc{GL_SRC_ALPHA, GL_ONE} 
+							: ccBlendFunc{GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA};
+
+						if (auto anim = typeinfo_cast<AnimatedGameObject*>(gameObject)) {
+							for (auto child : anim->m_animatedSprite->m_paSprite->getChildrenExt()) {
+								if (child == anim->m_eyeSpritePart && !anim->m_childSprite) continue;
+								auto spr = static_cast<CCSprite*>(child);
+								spr->setBlendFunc(blend);
+							}
+						}
+						else if (typeinfo_cast<EnhancedGameObject*>(gameObject) || gameObject->m_hasCustomChild) {
+							for (auto child : gameObject->getChildrenExt()) {
+								if (child == gameObject->m_colorSprite) continue;
+								auto spr = static_cast<CCSprite*>(child);
+								spr->setBlendFunc(blend);
+							}
+						}
+
+						const auto& id = gameObject->m_objectID;
+						if (id == 1701 || id == 1702 || id == 1703) {
+							for (auto child : gameObject->getChildrenExt()) {
+								if (child->getChildrenCount() == 0) {
+									auto spr = static_cast<CCSprite*>(child);
+									spr->setBlendFunc(blend);
+								}
+							}
+						}
+
+						gameObject->setBlendFunc(blend);
+
+						if (baseColor->m_usesHSV) color = GameToolbox::transformColor(color, baseColor->m_hsv);
+						gameObject->updateMainColor(color);
+					}
+					if (auto detailColor = gameObject->m_detailColor) {
+						detailColor->m_colorID = defaultObject->m_detailColor->m_colorID;
+						detailColor->m_hsv = defaultObject->m_detailColor->m_hsv;
+
+						auto color = ccColor3B{200, 200, 255};
+						bool blending = false;
+						gameObject->updateHSVState();
+
+						if (defaultObject->m_detailColor->m_colorID != 0) {
+							auto colorData = getActiveColor(detailColor->m_colorID);
+							color = colorData.color;
+							blending = colorData.blending;
+							detailColor->m_opacity = colorData.opacity;
+						}
+
+						auto blend = blending 
+							? ccBlendFunc{GL_SRC_ALPHA, GL_ONE} 
+							: ccBlendFunc{GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA};
+
+						std::function<void(CCNode*)> applyBlend = [&](CCNode* node) {
+							for (auto child : node->getChildrenExt()) {
+								auto spr = static_cast<CCSprite*>(child);
+								spr->setBlendFunc(blend);
+								applyBlend(child);
+							}
+						};
+						
+						if (auto anim = typeinfo_cast<AnimatedGameObject*>(gameObject)) {
+							if (anim->m_childSprite) {
+								anim->m_childSprite->setBlendFunc(blend);
+							}
+							else {
+								anim->m_eyeSpritePart->setBlendFunc(blend);
+							}
+						}
+						else if (typeinfo_cast<EnhancedGameObject*>(gameObject)) {
+							for (auto child : gameObject->getChildrenExt()) {
+								applyBlend(child);
+							}
+						}
+						else {
+							const auto& id = gameObject->m_objectID;
+							if (id == 1701 || id == 1702 || id == 1703) {
+								for (auto child : gameObject->getChildrenExt()) {
+									if (child->getChildrenCount() > 0) {
+										applyBlend(child);
+										auto spr = static_cast<CCSprite*>(child);
+										spr->setBlendFunc(blend);
+									}
+								}
+							}
+							else {
+								applyBlend(gameObject);
+							}
+						}
+
+						if (auto spr = gameObject->m_colorSprite) {
+							spr->setBlendFunc(blend);
+						}
+
+						if (detailColor->m_usesHSV) color = GameToolbox::transformColor(color, detailColor->m_hsv);
+						gameObject->updateSecondaryColor(color);
+					}
+				}
+			}
+		}
+	}
+
 	void updateObjectColors(float dt) {
 		auto defaultObject = m_fields->m_defaultObject;
 
@@ -185,74 +313,27 @@ class $modify(MyEditorUI, EditorUI) {
 						if (!parent2->isVisible()) continue;
 					}
 				}
-				if (auto btnSprite = btn->getChildByType<ButtonSprite>(0)) {
-					if (auto gameObject = btnSprite->getChildByType<GameObject>(0)) {
-						if (!isColorable(gameObject)) continue;
-						
-						if (auto baseColor = gameObject->m_baseColor) {
-							baseColor->m_colorID = defaultObject->m_baseColor->m_colorID;
-							baseColor->m_hsv = defaultObject->m_baseColor->m_hsv;
-
-							auto color = ccColor3B{255, 255, 255};
-							bool blending = false;
-							gameObject->updateHSVState();
-
-							if (defaultObject->m_baseColor->m_colorID != 0) {
-								auto pair = getActiveColor(baseColor->m_colorID);
-								color = pair.first;
-								blending = pair.second;
+				updateButton(btn, defaultObject);
+			}
+			for (auto buttonPage : CCArrayExt<ButtonPage*>(bar->m_pagesArray)) {
+				if (auto menu = buttonPage->getChildByType<CCMenu>(0)) {
+					if (auto group = menu->getChildByType<Group>(0)) {
+						if (!group->isVisible()) continue;
+						if (auto innerMenu = group->getChildByType<CCMenu>(1)) {
+							for (auto btn : innerMenu->getChildrenExt()) {
+								updateButton(btn, defaultObject);
 							}
-
-							auto blend = blending 
-								? ccBlendFunc{GL_SRC_ALPHA, GL_ONE} 
-								: ccBlendFunc{GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA};
-
-							if (typeinfo_cast<EnhancedGameObject*>(gameObject)) {
-								for (auto child : gameObject->getChildrenExt()) {
-									auto sprite = typeinfo_cast<CCSprite*>(child);
-									if (sprite) sprite->setBlendFunc(blend);
-								}
-							}
-							gameObject->setBlendFunc(blend);
-
-							if (baseColor->m_usesHSV) color = GameToolbox::transformColor(color, baseColor->m_hsv);
-							gameObject->updateMainColor(color);
 						}
-						if (auto detailColor = gameObject->m_detailColor) {
-							detailColor->m_colorID = defaultObject->m_detailColor->m_colorID;
-							detailColor->m_hsv = defaultObject->m_detailColor->m_hsv;
-
-							auto color = ccColor3B{200, 200, 255};
-							bool blending = false;
-							gameObject->updateHSVState();
-
-							if (defaultObject->m_detailColor->m_colorID != 0) {
-								auto pair = getActiveColor(detailColor->m_colorID);
-								color = pair.first;
-								blending = pair.second;
-							}
-
-							auto blend = blending 
-								? ccBlendFunc{GL_SRC_ALPHA, GL_ONE} 
-								: ccBlendFunc{GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA};
-
-							std::function<void(CCNode*)> applyBlend = [&](CCNode* node) {
-								for (auto child : node->getChildrenExt()) {
-									auto sprite = typeinfo_cast<CCSprite*>(child);
-									if (sprite) sprite->setBlendFunc(blend);
-									applyBlend(child);
-								}
-							};
-							if (typeinfo_cast<EnhancedGameObject*>(gameObject)) {
-								for (auto child : gameObject->getChildrenExt()) {
-									applyBlend(child);
-								}
-							}
-							applyBlend(gameObject);
-
-							if (detailColor->m_usesHSV) color = GameToolbox::transformColor(color, detailColor->m_hsv);
-							gameObject->updateSecondaryColor(color);
-						}
+					}
+				}
+			}
+		}
+		if (auto pinned = getChildByID("razoom.object_groups/pinned-groups")) {
+			for (auto group : pinned->getChildrenExt()) {
+				if (!group->isVisible()) continue;
+				if (auto innerMenu = group->getChildByType<CCMenu>(1)) {
+					for (auto btn : innerMenu->getChildrenExt()) {
+						updateButton(btn, defaultObject);
 					}
 				}
 			}
