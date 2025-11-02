@@ -204,17 +204,22 @@ class $modify(MyEditorUI, EditorUI) {
 							: ccBlendFunc{GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA};
 
 						if (auto anim = typeinfo_cast<AnimatedGameObject*>(gameObject)) {
-							for (auto child : anim->m_animatedSprite->m_paSprite->getChildrenExt()) {
-								if (child == anim->m_eyeSpritePart && !anim->m_childSprite) continue;
-								auto spr = static_cast<CCSprite*>(child);
-								spr->setBlendFunc(blend);
+							if (auto animSpr = anim->m_animatedSprite) {
+								if (auto paSpr = animSpr->m_paSprite) {
+									for (auto child : paSpr->getChildrenExt()) {
+										if (child == anim->m_eyeSpritePart && !anim->m_childSprite) continue;
+										auto spr = static_cast<CCSprite*>(child);
+										spr->setBlendFunc(blend);
+									}
+								}
 							}
 						}
 						else if (typeinfo_cast<EnhancedGameObject*>(gameObject) || gameObject->m_hasCustomChild) {
 							for (auto child : gameObject->getChildrenExt()) {
 								if (child == gameObject->m_colorSprite) continue;
-								auto spr = static_cast<CCSprite*>(child);
-								spr->setBlendFunc(blend);
+								if (auto spr = typeinfo_cast<CCSprite*>(child)) {
+									spr->setBlendFunc(blend);
+								}
 							}
 						}
 
@@ -222,8 +227,9 @@ class $modify(MyEditorUI, EditorUI) {
 						if (id == 1701 || id == 1702 || id == 1703) {
 							for (auto child : gameObject->getChildrenExt()) {
 								if (child->getChildrenCount() == 0) {
-									auto spr = static_cast<CCSprite*>(child);
-									spr->setBlendFunc(blend);
+									if (auto spr = typeinfo_cast<CCSprite*>(child)) {
+										spr->setBlendFunc(blend);
+									}
 								}
 							}
 						}
@@ -254,9 +260,10 @@ class $modify(MyEditorUI, EditorUI) {
 
 						std::function<void(CCNode*)> applyBlend = [&](CCNode* node) {
 							for (auto child : node->getChildrenExt()) {
-								auto spr = static_cast<CCSprite*>(child);
-								spr->setBlendFunc(blend);
-								applyBlend(child);
+								if (auto spr = typeinfo_cast<CCSprite*>(child)) {
+									spr->setBlendFunc(blend);
+									applyBlend(spr);
+								}
 							}
 						};
 						
@@ -265,7 +272,9 @@ class $modify(MyEditorUI, EditorUI) {
 								anim->m_childSprite->setBlendFunc(blend);
 							}
 							else {
-								anim->m_eyeSpritePart->setBlendFunc(blend);
+								if (auto eye = anim->m_eyeSpritePart) {
+									eye->setBlendFunc(blend);
+								}
 							}
 						}
 						else if (typeinfo_cast<EnhancedGameObject*>(gameObject)) {
@@ -279,8 +288,9 @@ class $modify(MyEditorUI, EditorUI) {
 								for (auto child : gameObject->getChildrenExt()) {
 									if (child->getChildrenCount() > 0) {
 										applyBlend(child);
-										auto spr = static_cast<CCSprite*>(child);
-										spr->setBlendFunc(blend);
+										if (auto spr = typeinfo_cast<CCSprite*>(child)) {
+											spr->setBlendFunc(blend);
+										}
 									}
 								}
 							}
