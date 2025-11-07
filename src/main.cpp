@@ -63,6 +63,8 @@ class $modify(MyEditorUI, EditorUI) {
     GameObject* createObject(int p0, cocos2d::CCPoint p1) {
 		auto ret = EditorUI::createObject(p0, p1);
 
+		if (!isColorable(ret)) return ret;
+
 		auto defaultObject = m_fields->m_defaultObject;
 
 		int baseColorID = defaultObject->m_baseColor->m_colorID;

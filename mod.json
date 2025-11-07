@@ -8,7 +8,7 @@
 	},
 	"id": "alphalaneous.preview_object_colors",
 	"name": "Preview Object Colors",
-	"version": "v1.0.2",
+	"version": "v1.0.3",
 	"developer": "Alphalaneous",
 	"description": "Show object colors on objects",
 	"dependencies": {
